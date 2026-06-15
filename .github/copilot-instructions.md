@@ -91,3 +91,54 @@ Roles: `ADMIN`, `DOCTOR`, `RECEPTIONIST`, `PATIENT`. Role-based URL rules are de
 - Unit tests use `@ExtendWith(MockitoExtension.class)` with `@Mock` / `@InjectMocks` — no Spring context.
 - Assertions use AssertJ (`assertThat`, `assertThatThrownBy`).
 - Test classes mirror the `impl` class under `test/java/com/hms/<feature>/service/`.
+
+### MapStruct + Lombok
+All `toEntity()` mapper methods must include `@BeanMapping(builder = @Builder(disableBuilder = true))` to force MapStruct to use setters instead of the builder. Omitting this causes a compile error because Lombok's `@Builder` does not include fields inherited from `BaseEntity`.
+
+---
+
+## GHAS Vulnerability Management
+
+### Multi-Agent Orchestration
+A two-workflow, multi-agent system lives in `.github/agents/` for automated Dependabot vulnerability remediation.
+
+```
+.github/
+  agents/
+    dependabot-vuln-orchestrator.md   ← entry point (@dependabot-vuln-orchestrator)
+    w1-fetcher.md                     ← runs fetch script, produces Excel
+    w1-sorter.md                      ← sorts Excel by service + severity
+    w1-jira-manager.md                ← Jira dedup check + ticket creation
+    w2-context-builder.md             ← fetches alerts + parses pom.xml
+    w2-fixer.md                       ← patches pom.xml (CRITICAL first)
+    w2-validator.md                   ← mvn compile + test + smoke check
+    w2-reporter.md                    ← raises PR + updates Jira to In Review
+  scripts/
+    fetch_dependabot_alerts.py        ← GitHub REST API → color-coded Excel
+```
+
+**Invoke via Copilot Chat:**
+```
+@dependabot-vuln-orchestrator Run both workflows for HMS
+@dependabot-vuln-orchestrator Run ingest only
+@dependabot-vuln-orchestrator Resolve HMS with Jira ticket SEC-101
+```
+
+### Workflow 1 — Alert Ingestion
+1. `@w1-fetcher` runs `fetch_dependabot_alerts.py` (requires `GITHUB_TOKEN` env var)
+2. `@w1-sorter` sorts Excel by service name, then CRITICAL → HIGH → MEDIUM → LOW
+3. `@w1-jira-manager` searches Jira (Backlog + In Dev) by CVE label + service label — skips if found, creates if not
+
+**Excel columns:** Service | Repo | Alert # | Severity | CVE ID | Package | Vulnerable Range | Safe Version | Manifest | Scope | Summary | Alert URL | **Jira Key** | **Jira Status**
+
+### Workflow 2 — Vulnerability Resolver
+Fix strategy rules enforced by `@w2-fixer`:
+- **Property-backed versions** (`${some.version}`) → update `<properties>` block only — one change covers all usages (preferred)
+- **Inline versions** → update `<version>` tag directly
+- **BOM-managed** (no `<version>` tag) → skip, note in PR
+- Sibling groups (`jjwt-*`, `log4j-*`, `jackson-*`) must always share the same version — when fixing one, update all siblings
+
+Validation order in `@w2-validator`: `mvn dependency:tree` → `mvn compile` → `mvn test` → `spring-boot:run` health check. Individual failing fixes are reverted, not the whole file.
+
+### Dependabot Schedule
+Configured in `.github/dependabot.yml` — weekly on Mondays at 09:00 IST, maven ecosystem, max 5 open PRs.
