@@ -37,8 +37,8 @@ You do NOT call any tools directly — each sub-agent owns its own tools.
 
 | Field | Example | Required |
 |---|---|---|
-| `PROJECT_KEY` | `SCRUM` | ✅ |
-| `REPO_ROOT` | path to repo on disk | ✅ |
+| `PROJECT_KEY` | `SCRUM` | ✅ (default: read from `JIRA_PROJECT_KEY` in `.env`) |
+| `REPO_ROOT` | `C:/Users/AkshayPratapSingh/Downloads/GHAS-Project/GHAS-Project` | ✅ (default: read from `REPO_ROOT` in `.env`) |
 
 ---
 
@@ -148,8 +148,8 @@ Report back to `@dependabot-vuln-orchestrator`:
 
 | Field | Example | Required |
 |-------|---------|----------|
-| `PROJECT_KEY` | `SEC` | ✅ |
-| `REPO_ROOT` | path to the repo on disk | ✅ |
+| `PROJECT_KEY` | `SCRUM` | ✅ (default: read from `JIRA_PROJECT_KEY` in `.env`) |
+| `REPO_ROOT` | `C:/Users/AkshayPratapSingh/Downloads/GHAS-Project/GHAS-Project` | ✅ (default: read from `REPO_ROOT` in `.env`) |
 
 ---
 

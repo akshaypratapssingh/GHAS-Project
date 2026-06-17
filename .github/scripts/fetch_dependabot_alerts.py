@@ -29,11 +29,15 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", ".en
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+JIRA_URL      = os.getenv("JIRA_URL", "")
+JIRA_EMAIL    = os.getenv("JIRA_EMAIL", "")
+JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "")
+JIRA_PROJECT_KEY = os.getenv("JIRA_PROJECT_KEY", "SCRUM")
 
-REPOS = [
-    "NehaMeena1234/GHS",
-    # "your-org/service-2",
-    # "your-org/service-3",
+# Repos to scan — reads from GITHUB_REPO env var (comma-separated) or falls back to list below
+_repo_env = os.getenv("GITHUB_REPO", "")
+REPOS = [r.strip() for r in _repo_env.split(",") if r.strip()] if _repo_env else [
+    "akshaypratapssingh/GHAS-Project",
 ]
 
 ECOSYSTEM_FILTER = "maven"   # None = all ecosystems

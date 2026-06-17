@@ -64,8 +64,8 @@ If mode is "both" → proceed to Workflow 2 using the Jira ticket IDs returned.
 ## If "resolve" or "both"
 
 Ask for (or receive from Workflow 1 output):
-- `SERVICE_NAME` — e.g. `GHS`
-- `REPO` — e.g. `NehaMeena1234/GHS`
+- `SERVICE_NAME` — e.g. `GHAS-Project`
+- `REPO` — e.g. `akshaypratapssingh/GHAS-Project`
 - `JIRA_TICKET_ID` — e.g. `SCRUM-5`
 
 > ⚠️ **Rule:** Never run Workflow 2 unless a Jira ticket ID is available for the service.
