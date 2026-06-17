@@ -163,8 +163,9 @@ def severity_counts(alerts: list) -> dict:
 
 
 def build_title(service: str, counts: dict) -> str:
-    parts = [f"{k[0]}-{v}" for k, v in counts.items() if v > 0]
-    return f"{service} ({', '.join(parts)})"
+    sev_names = {"CRITICAL": "Critical", "HIGH": "High", "MEDIUM": "Medium", "LOW": "Low"}
+    parts = [f"{sev_names[k]}-{v}" for k, v in counts.items() if v > 0]
+    return f"Address GHAS vulnerabilities for {service} [{', '.join(parts)}]"
 
 
 def counts_label(counts: dict) -> str:

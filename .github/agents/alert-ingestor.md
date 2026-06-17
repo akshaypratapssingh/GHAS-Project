@@ -279,10 +279,10 @@ The `create_jira_tickets.py` script creates each ticket with:
 
 ### Ticket Title format:
 ```
-<SERVICE_NAME> (C-<n>, H-<n>, M-<n>, L-<n>)
+Address GHAS vulnerabilities for <SERVICE_NAME> [Critical-<n>, High-<n>, Medium-<n>, Low-<n>]
 ```
 Only includes severity labels that have at least 1 alert:
-- `GHAS-Project (C-3, H-6, M-5, L-1)`
+- `Address GHAS vulnerabilities for GHAS-Project [Critical-3, High-6, Medium-5, Low-1]`
 
 ---
 
