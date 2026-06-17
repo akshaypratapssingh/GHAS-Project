@@ -233,7 +233,16 @@ Print confirmation:
 ## STEP 3 — DEDUP CHECK IN JIRA
 ## ═══════════════════════════════════════════
 
-For **each service** in the grouped structure, search Jira:
+Run the Jira manager script (handles dedup + create/update automatically):
+
+```bash
+cd <REPO_ROOT>
+python .github/scripts/create_jira_tickets.py <excel_path>
+```
+
+The script reads `JIRA_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY` from the `.env` file.
+
+For **each service** in the grouped structure, it runs this JQL search internally:
 
 ```jql
 project = "<PROJECT_KEY>"
@@ -243,13 +252,18 @@ AND statusCategory in ("To Do", "In Progress")
 ```
 
 Record the result per service:
-- **Ticket found** → mark as `SKIP` — record the existing Jira key
+- **Ticket found** → mark as `UPDATE` — recalculate counts, update title + description + add comment
 - **No ticket found** → mark as `CREATE`
 
 Print per-service result:
 ```
-[JIRA CHECK] HMS       → no existing ticket found → will CREATE
-[JIRA CHECK] service-2 → SEC-098 found (In Dev)   → will SKIP
+[JIRA] Processing: GHAS-Project  (C-3 H-6 M-5 L-1)
+  → No existing ticket found — will CREATE
+  ✅ Created: SCRUM-5
+
+[JIRA] Processing: service-2     (C-1 H-2 M-0 L-0)
+  → Found existing ticket: SCRUM-3 — will UPDATE
+  ✅ Updated: SCRUM-3
 ```
 
 **If Jira search fails for a service:**
@@ -258,20 +272,17 @@ Print per-service result:
 ---
 
 ## ═══════════════════════════════════════════
-## STEP 4 — CREATE JIRA TICKETS
+## STEP 4 — JIRA TICKET FIELDS
 ## ═══════════════════════════════════════════
 
-For each service marked `CREATE`, create one Jira ticket.
-
----
+The `create_jira_tickets.py` script creates each ticket with:
 
 ### Ticket Title format:
 ```
 <SERVICE_NAME> (C-<n>, H-<n>, M-<n>, L-<n>)
 ```
-Only include severity labels that have at least 1 alert:
-- `HMS (C-2, H-1)` — if no MEDIUM or LOW
-- `HMS (C-1, M-3, L-2)` — if no HIGH
+Only includes severity labels that have at least 1 alert:
+- `GHAS-Project (C-3, H-6, M-5, L-1)`
 
 ---
 
@@ -279,81 +290,22 @@ Only include severity labels that have at least 1 alert:
 
 | Field | Value |
 |-------|-------|
-| Project | `<PROJECT_KEY>` |
+| Project | `SCRUM` |
 | Issue Type | Bug |
 | Summary | `<SERVICE_NAME> (C-<n>, H-<n>, M-<n>, L-<n>)` |
-| Priority | Highest severity present → CRITICAL: Blocker · HIGH: Critical · MEDIUM: Major · LOW: Minor |
+| Priority | CRITICAL→Highest · HIGH→High · MEDIUM→Medium · LOW→Low |
 | Labels | `GHAS`, `<SERVICE_NAME>`, `dependabot`, `security` |
-| Description | Use template below |
+| Description | ADF table grouped by severity (GHSA ID, CVE, Package, Vulnerable Range, Safe Version, Summary) |
 
 ---
 
-### Description template:
-> Always pass as a real multiline string — never use `\n` escape sequences.
+### Step 4.1 — Excel update (automatic)
 
-```markdown
-## 🔒 Dependabot Security Alerts — <SERVICE_NAME>
+The script updates **every row** of each service in the "Alerts" sheet:
+- **Column N (Jira Key):** e.g. `SCRUM-5`
+- **Column O (Jira Status):** `CREATED`, `UPDATED`, or `FAILED`
 
-**Repo:** <REPO>
-**Scan Date:** <YYYY-MM-DD>
-**Total Alerts:** <TOTAL>  (C-<n> | H-<n> | M-<n> | L-<n>)
-
----
-
-### 🔴 CRITICAL
-
-| GHS ID | CVE ID | Package | Issue Summary |
-|--------|--------|---------|---------------|
-| GHSA-xxxx-xxxx-xxxx | CVE-2021-44228 | org.apache.logging.log4j:log4j-core:2.14.1 | Log4Shell — Remote Code Execution |
-| GHSA-xxxx-xxxx-xxxx | CVE-2015-7501  | commons-collections:commons-collections:3.2.1 | RCE via unsafe deserialization |
-
----
-
-### 🟠 HIGH
-
-| GHS ID | CVE ID | Package | Issue Summary |
-|--------|--------|---------|---------------|
-| GHSA-xxxx-xxxx-xxxx | CVE-2020-36518 | com.fasterxml.jackson.core:jackson-databind:2.13.2 | DoS via deep wrapper array nesting |
-
----
-
-### 🟡 MEDIUM
-
-| GHS ID | CVE ID | Package | Issue Summary |
-|--------|--------|---------|---------------|
-| GHSA-xxxx-xxxx-xxxx | CVE-2023-2976 | com.google.guava:guava:29.0-jre | Insecure temp directory + path traversal |
-
----
-
-### 🟢 LOW
-
-| GHS ID | CVE ID | Package | Issue Summary |
-|--------|--------|---------|---------------|
-| GHSA-xxxx-xxxx-xxxx | CVE-2022-25647 | com.google.code.gson:gson:2.8.5 | Deserialization of untrusted data |
-
----
-*Auto-created by GHAS Vulnerability Management — Workflow 1 / Alert Ingestor*
-```
-
-> **Table rules:**
-> - Only include severity sections that have alerts — omit empty sections entirely
-> - `Package` column format: `groupId:artifactId:currentVersion`
-> - `GHS ID` = `security_advisory.ghsa_id` from the GitHub alert
-> - Rows within each section sorted alphabetically by package name
-
----
-
-### Step 4.1 — Update Excel after each ticket
-
-After creating a ticket for a service, update **every row** of that service in the "Alerts" sheet:
-- **Column M (Jira Key):** e.g. `SEC-101`
-- **Column N (Jira Status):** `CREATED`
-
-For services that were skipped:
-- **Column M (Jira Key):** existing key (e.g. `SEC-098`)
-- **Column N (Jira Status):** `SKIPPED`
-
-Save the Excel file once after **all services** are processed.
+Excel is saved **once after all services** are processed.
 
 ---
 

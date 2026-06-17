@@ -53,7 +53,7 @@ SEVERITY_COLORS = {
 }
 
 COLUMNS = [
-    "Service", "Repo", "Alert #", "Severity", "CVE ID",
+    "Service", "Repo", "Alert #", "Severity", "CVE ID", "GHSA ID",
     "Package", "Vulnerable Range", "Safe Version",
     "Manifest", "Scope", "Summary", "Alert URL",
     "Jira Key", "Jira Status"   # filled later by Sub-Agent 3
@@ -104,6 +104,7 @@ def fetch_alerts(repo: str) -> list[dict]:
                 "alert_number":     a["number"],
                 "severity":         adv.get("severity", "unknown").lower(),
                 "cve_id":           adv.get("cve_id", "N/A"),
+                "ghsa_id":          adv.get("ghsa_id", "N/A"),
                 "package":          a["dependency"]["package"]["name"],
                 "vulnerable_range": vuln.get("vulnerable_version_range", ""),
                 "safe_version":     patch["identifier"] if patch else "No patch available",
@@ -159,7 +160,7 @@ def export_excel(alerts: list[dict], filename: str) -> str:
         fill  = PatternFill("solid", fgColor=color)
         values = [
             a["service"], a["repo"], a["alert_number"],
-            a["severity"].upper(), a["cve_id"], a["package"],
+            a["severity"].upper(), a["cve_id"], a["ghsa_id"], a["package"],
             a["vulnerable_range"], a["safe_version"],
             a["manifest"], a["scope"], a["summary"],
             a["alert_url"], a["jira_key"], a["jira_status"],
