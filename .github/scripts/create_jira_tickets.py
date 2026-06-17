@@ -46,12 +46,19 @@ PROJECT_KEY     = os.getenv("JIRA_PROJECT_KEY", "SCRUM")
 SCAN_DATE       = date.today().isoformat()
 
 SEVERITY_ORDER  = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-SEVERITY_EMOJI  = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}
 PRIORITY_MAP    = {
     "CRITICAL": "Highest",
     "HIGH":     "High",
     "MEDIUM":   "Medium",
     "LOW":      "Low",
+}
+
+# ADF status badge colors (renders as colored pill in Jira Cloud UI)
+SEVERITY_BADGE_COLOR = {
+    "CRITICAL": "red",
+    "HIGH":     "yellow",
+    "MEDIUM":   "blue",
+    "LOW":      "green",
 }
 
 EXCEL_COLUMNS = [
@@ -213,60 +220,82 @@ def _td(text: str) -> dict:
             "content": [{"type": "paragraph", "content": [_text(str(text or ""))]}]}
 
 
+def _td_badge(sev: str) -> dict:
+    """Table cell with a color-coded ADF status badge (no emoji)."""
+    return {
+        "type": "tableCell", "attrs": {},
+        "content": [{
+            "type": "paragraph",
+            "content": [{
+                "type": "status",
+                "attrs": {
+                    "text":  sev,
+                    "color": SEVERITY_BADGE_COLOR.get(sev, "neutral"),
+                },
+            }],
+        }],
+    }
+
+
 def _table_row(cells: list) -> dict:
     return {"type": "tableRow", "content": cells}
 
 
-def _severity_table(alerts_in_sev: list) -> dict:
+def _build_vuln_table(alerts: list) -> dict:
+    """Single table with all CVEs — sorted by severity then package name."""
     header = _table_row([
-        _th("GHSA ID"), _th("CVE ID"), _th("Package"),
-        _th("Vulnerable Range"), _th("Safe Version"), _th("Issue Summary"),
+        _th("#"), _th("Severity"), _th("CVE ID"), _th("GHSA ID"),
+        _th("Package"), _th("Vulnerable Range"), _th("Safe Version"), _th("Summary"),
     ])
+    sorted_alerts = sorted(
+        alerts,
+        key=lambda a: (
+            SEVERITY_ORDER.get(str(a.get("Severity") or "").upper(), 99),
+            str(a.get("Package") or ""),
+        ),
+    )
     rows = [header]
-    for a in sorted(alerts_in_sev, key=lambda x: str(x.get("Package") or "")):
+    for i, a in enumerate(sorted_alerts, 1):
+        sev = str(a.get("Severity") or "").upper()
         rows.append(_table_row([
-            _td(a.get("GHSA ID", "N/A")),
+            _td(str(i)),
+            _td_badge(sev),
             _td(a.get("CVE ID", "N/A")),
+            _td(a.get("GHSA ID", "N/A")),
             _td(a.get("Package", "")),
             _td(a.get("Vulnerable Range", "")),
             _td(a.get("Safe Version", "")),
             _td(a.get("Summary", "")),
         ]))
-    return {"type": "table",
-            "attrs": {"isNumberColumnEnabled": False, "layout": "default"},
-            "content": rows}
+    return {
+        "type": "table",
+        "attrs": {"isNumberColumnEnabled": False, "layout": "full-width"},
+        "content": rows,
+    }
 
 
 def build_adf_description(service: str, alerts: list) -> dict:
     repo   = str(alerts[0].get("Repo", "")) if alerts else ""
     counts = severity_counts(alerts)
     total  = sum(counts.values())
-    clabel = counts_label(counts)
+
+    sev_summary = "   ".join(
+        f"{k.capitalize()}: {v}" for k, v in counts.items() if v > 0
+    )
 
     content = [
-        _heading(2, f"\U0001f512 Dependabot Security Alerts \u2014 {service}"),
-        _para(_bold("Repo: "), _text(repo)),
-        _para(_bold("Scan Date: "), _text(SCAN_DATE)),
-        _para(_bold("Total Alerts: "), _text(f"{total}  ({clabel})")),
+        _heading(2, f"Dependabot Security Alerts - {service}"),
+        _para(_bold("Repo: "),       _text(repo)),
+        _para(_bold("Scan Date: "),  _text(SCAN_DATE)),
+        _para(_bold("Total Alerts: "), _text(f"{total}  ({sev_summary})")),
         _rule(),
+        _heading(3, f"Vulnerability Report - {service}"),
+        _build_vuln_table(alerts),
+        _rule(),
+        _para(_text(
+            "Auto-created by GHAS Vulnerability Management - Workflow 1 / Jira Manager"
+        )),
     ]
-
-    by_sev: dict[str, list] = {}
-    for a in alerts:
-        sev = str(a.get("Severity") or "").upper()
-        by_sev.setdefault(sev, []).append(a)
-
-    for sev in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
-        if sev not in by_sev:
-            continue
-        emoji = SEVERITY_EMOJI[sev]
-        content.append(_heading(3, f"{emoji} {sev}"))
-        content.append(_severity_table(by_sev[sev]))
-        content.append(_rule())
-
-    content.append(_para(_text(
-        "Auto-created by GHAS Vulnerability Management \u2014 Workflow 1 / Jira Manager"
-    )))
     return {"version": 1, "type": "doc", "content": content}
 
 
@@ -276,12 +305,12 @@ def build_adf_comment(counts: dict) -> dict:
     return {
         "version": 1, "type": "doc",
         "content": [
-            _para(_text(f"\U0001f504 Re-scanned on {SCAN_DATE}")),
+            _para(_text(f"Re-scanned on {SCAN_DATE}")),
             _para(_bold("Alert counts updated: "), _text(clabel)),
             _para(_bold("Total alerts: "), _text(str(total))),
             _rule(),
             _para(_text(
-                "Automated by GHAS Vulnerability Management \u2014 Workflow 1 / Jira Manager"
+                "Automated by GHAS Vulnerability Management - Workflow 1 / Jira Manager"
             )),
         ],
     }
