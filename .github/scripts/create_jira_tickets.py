@@ -415,7 +415,7 @@ def main():
 
         # ── Create or Update ──────────────────────────────────────────────────
         if existing_key:
-            print(f"  → Found existing ticket: {existing_key} — will UPDATE")
+            print(f"  -> Found existing ticket: {existing_key} - will UPDATE")
             try:
                 update_ticket(existing_key, svc, alerts)
                 print(f"  ✅ Updated: {existing_key}")
@@ -426,7 +426,7 @@ def main():
                 failed.append(svc)
                 results[svc] = {"key": existing_key, "status": "UPDATE_FAILED"}
         else:
-            print(f"  → No existing ticket found — will CREATE")
+            print(f"  -> No existing ticket found - will CREATE")
             try:
                 new_key = create_ticket(svc, alerts)
                 print(f"  ✅ Created: {new_key}")
